@@ -1,26 +1,88 @@
-# permissions_service
 
-[![Package Version](https://img.shields.io/hexpm/v/permissions_service)](https://hex.pm/packages/permissions_service)
-[![Hex Docs](https://img.shields.io/badge/hex-docs-ffaff3)](https://hexdocs.pm/permissions_service/)
+# Permissions Service
 
-```sh
-gleam add permissions_service
+A modern standalone drop-in permissions microservice written in gleam.
+
+
+## Features
+
+- REST API endpoints to manage user permissions (see endpoints below)
+- flexible permissions structure gives clients flexibility/freedom to design their own permissions schema
+- designed to work flawlessly with my [Gleam Authentication Service](https://github.com/donnaloia/auth_server) in a distributed or integrated system
+- initial testing suggests performance improvements over comparable service written in Flask
+
+
+## Tech Stack
+
+**Containerization:** Docker
+
+**DB:** MongoDB
+
+**Server:** Written in Gleam
+
+
+
+
+## Run Locally
+docker-compose spins up a mongodb instance and the gleam permissions service for testing.
+To deploy this project locally run:
+
+```bash
+  docker-compose build
+  docker-compose up
 ```
-```gleam
-import permissions_service
 
-pub fn main() {
-  // TODO: An example of the project in use
-}
+
+## REST API Reference
+
+
+#### All endpoints require a valid access-token
+
+
+| HTTP Header | Type     | Description                |
+| :-------- | :------- | :------------------------- |
+| `Bearer <access_token>` | `string` | Your API access token |
+
+
+#### Get User Permission
+
+```http
+  GET /api/v1/users/${uuid}/permissions/
 ```
 
-Further documentation can be found at <https://hexdocs.pm/permissions_service>.
+| Parameter | Type     | Description                       |
+| :-------- | :------- | :-------------------------------- |
+| `uuid`    | `string` | **Required**. Uuid of user to fetch |
 
-## Development
+#### Create User Permission
 
-```sh
-gleam run   # Run the project
-gleam test  # Run the tests
-gleam shell # Run an Erlang shell
+```http
+  GET /api/v1/permissions/
 ```
-# permissions-service
+
+
+| Parameter | Type     | Description                       |
+| :-------- | :------- | :-------------------------------- |
+| `uuid`      | `string` | **Required**. Uuid of the user we are creating permissions for|
+| `permissions`| `json` | **Required**. Json of permissions mapped to hierarchal resources|
+
+
+#### Update User Permission
+
+```http
+  POST /api/v1/permissions/
+```
+
+| Parameter | Type     | Description                       |
+| :-------- | :------- | :-------------------------------- |
+| `uuid`      | `string` | **Required**. Uuid of the user we are updating permissions for|
+| `permissions`| `json` | **Required**. Json of permissions mapped to hierarchal resources|
+
+
+## Todo
+
+- refactor views (still learning Gleam)
+- api pagination
+- api docs server
+- add test coverage
+- CLI admin tool
