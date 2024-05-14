@@ -1,3 +1,4 @@
+import app/helpers
 import app/web.{type Context}
 import bison/bson
 import bison/uuid
@@ -45,7 +46,6 @@ pub fn get_user_permission(req: Request, ctx: Context, id: String) -> Response {
           128,
         )
 
-      // io.debug(permissions) returns this:
       //Some(Document(dict.from_list([#("_id", Binary(Uuid(Uuid(<<85, 14, 132, 0, 226, 155, 65, 212, 167, 22, 68, 102, 85, 68, 0, 0>>)))), #("permissions", String("test perms"))])))
 
       case permissions {
@@ -69,21 +69,15 @@ pub fn get_user_permission(req: Request, ctx: Context, id: String) -> Response {
           |> wisp.json_response(200)
         }
         option.Some(_) -> {
-          json.object([#("error_message", json.string("no permissions found."))])
-          |> json.to_string_builder()
-          |> wisp.json_response(404)
+          helpers.no_permissions_found_error()
         }
         None -> {
-          json.object([#("error_message", json.string("no permissions found."))])
-          |> json.to_string_builder()
-          |> wisp.json_response(404)
+          helpers.no_permissions_found_error()
         }
       }
     }
     Error(_) -> {
-      json.object([#("error_message", json.string("invalid user_uuid."))])
-      |> json.to_string_builder()
-      |> wisp.json_response(400)
+      helpers.invalid_user_uuid_error()
     }
   }
 }
@@ -97,23 +91,13 @@ pub fn update_user_permission(
   use json <- wisp.require_json(req)
   case decode_user_perms(json) {
     Error([DecodeError("field", "nothing", ["user_uuid"])]) -> {
-      json.object([
-        #("error_message", json.string("user_uuid key is required.")),
-      ])
-      |> json.to_string_builder()
-      |> wisp.json_response(400)
+      helpers.user_uuid_missing_error()
     }
     Error([DecodeError("field", "nothing", ["permissions"])]) -> {
-      json.object([
-        #("error_message", json.string("permissions key is required.")),
-      ])
-      |> json.to_string_builder()
-      |> wisp.json_response(400)
+      helpers.permissions_key_is_required_error()
     }
     Error(_) -> {
-      json.object([#("error_message", json.string("malformed payload."))])
-      |> json.to_string_builder()
-      |> wisp.json_response(400)
+      helpers.malformed_payload_error()
     }
     Ok(user) -> {
       case uuid.from_string(user.user_uuid) {
@@ -143,9 +127,7 @@ pub fn update_user_permission(
           |> wisp.json_response(200)
         }
         Error(_) -> {
-          json.object([#("error_message", json.string("invalid user_uuid."))])
-          |> json.to_string_builder()
-          |> wisp.json_response(400)
+          helpers.invalid_user_uuid_error()
         }
       }
     }
@@ -157,23 +139,13 @@ pub fn create_user_permission(req: Request, ctx: Context) -> Response {
   use json <- wisp.require_json(req)
   case decode_user_perms(json) {
     Error([DecodeError("field", "nothing", ["user_uuid"])]) -> {
-      json.object([
-        #("error_message", json.string("user_uuid key is required.")),
-      ])
-      |> json.to_string_builder()
-      |> wisp.json_response(400)
+      helpers.user_uuid_missing_error()
     }
     Error([DecodeError("field", "nothing", ["permissions"])]) -> {
-      json.object([
-        #("error_message", json.string("permissions key is required.")),
-      ])
-      |> json.to_string_builder()
-      |> wisp.json_response(400)
+      helpers.permissions_key_is_required_error()
     }
     Error(_) -> {
-      json.object([#("error_message", json.string("malformed payload."))])
-      |> json.to_string_builder()
-      |> wisp.json_response(400)
+      helpers.malformed_payload_error()
     }
     Ok(user) -> {
       case uuid.from_string(user.user_uuid) {
@@ -200,21 +172,12 @@ pub fn create_user_permission(req: Request, ctx: Context) -> Response {
               |> wisp.json_response(201)
             }
             Error(_) -> {
-              json.object([
-                #(
-                  "error_message",
-                  json.string("a user with this uuid already exists."),
-                ),
-              ])
-              |> json.to_string_builder()
-              |> wisp.json_response(400)
+              helpers.user_already_exists_error()
             }
           }
         }
         Error(_) -> {
-          json.object([#("error_message", json.string("invalid user_uuid."))])
-          |> json.to_string_builder()
-          |> wisp.json_response(400)
+          helpers.invalid_user_uuid_error()
         }
       }
     }
