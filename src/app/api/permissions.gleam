@@ -180,7 +180,7 @@ pub fn create_user_permission(req: Request, ctx: Context) -> Response {
         Ok(validated_uuid) -> {
           let assert Ok(client) = mungo.start(ctx.mongo_connection_string, 512)
 
-          let assert Ok(_permissions) =
+          let mongo_write =
             client
             |> mungo.collection("permissions")
             |> mungo.insert_one(
@@ -190,13 +190,26 @@ pub fn create_user_permission(req: Request, ctx: Context) -> Response {
               ],
               128,
             )
-
-          json.object([
-            #("id", json.string(user.user_uuid)),
-            #("permissions", json.string(user.permissions)),
-          ])
-          |> json.to_string_builder()
-          |> wisp.json_response(201)
+          case mongo_write {
+            Ok(_) -> {
+              json.object([
+                #("id", json.string(user.user_uuid)),
+                #("permissions", json.string(user.permissions)),
+              ])
+              |> json.to_string_builder()
+              |> wisp.json_response(201)
+            }
+            Error(_) -> {
+              json.object([
+                #(
+                  "error_message",
+                  json.string("a user with this uuid already exists."),
+                ),
+              ])
+              |> json.to_string_builder()
+              |> wisp.json_response(400)
+            }
+          }
         }
         Error(_) -> {
           json.object([#("error_message", json.string("invalid user_uuid."))])
