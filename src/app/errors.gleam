@@ -33,8 +33,8 @@ pub fn user_already_exists_error() -> Response {
   |> wisp.json_response(400)
 }
 
-pub fn no_permissions_found_error() -> Response {
-  json.object([#("error_message", json.string("no permissions found."))])
+pub fn no_record_found_error() -> Response {
+  json.object([#("error_message", json.string("no record found."))])
   |> json.to_string_builder()
   |> wisp.json_response(404)
 }

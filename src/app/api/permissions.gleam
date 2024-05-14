@@ -1,4 +1,4 @@
-import app/helpers
+import app/errors
 import app/web.{type Context}
 import bison/bson
 import bison/uuid
@@ -69,15 +69,15 @@ pub fn get_user_permission(req: Request, ctx: Context, id: String) -> Response {
           |> wisp.json_response(200)
         }
         option.Some(_) -> {
-          helpers.no_permissions_found_error()
+          errors.no_record_found_error()
         }
         None -> {
-          helpers.no_permissions_found_error()
+          errors.no_record_found_error()
         }
       }
     }
     Error(_) -> {
-      helpers.invalid_user_uuid_error()
+      errors.invalid_user_uuid_error()
     }
   }
 }
@@ -91,13 +91,13 @@ pub fn update_user_permission(
   use json <- wisp.require_json(req)
   case decode_user_perms(json) {
     Error([DecodeError("field", "nothing", ["user_uuid"])]) -> {
-      helpers.user_uuid_missing_error()
+      errors.user_uuid_missing_error()
     }
     Error([DecodeError("field", "nothing", ["permissions"])]) -> {
-      helpers.permissions_key_is_required_error()
+      errors.permissions_key_is_required_error()
     }
     Error(_) -> {
-      helpers.malformed_payload_error()
+      errors.malformed_payload_error()
     }
     Ok(user) -> {
       case uuid.from_string(user.user_uuid) {
@@ -127,7 +127,7 @@ pub fn update_user_permission(
           |> wisp.json_response(200)
         }
         Error(_) -> {
-          helpers.invalid_user_uuid_error()
+          errors.invalid_user_uuid_error()
         }
       }
     }
@@ -139,13 +139,13 @@ pub fn create_user_permission(req: Request, ctx: Context) -> Response {
   use json <- wisp.require_json(req)
   case decode_user_perms(json) {
     Error([DecodeError("field", "nothing", ["user_uuid"])]) -> {
-      helpers.user_uuid_missing_error()
+      errors.user_uuid_missing_error()
     }
     Error([DecodeError("field", "nothing", ["permissions"])]) -> {
-      helpers.permissions_key_is_required_error()
+      errors.permissions_key_is_required_error()
     }
     Error(_) -> {
-      helpers.malformed_payload_error()
+      errors.malformed_payload_error()
     }
     Ok(user) -> {
       case uuid.from_string(user.user_uuid) {
@@ -172,12 +172,12 @@ pub fn create_user_permission(req: Request, ctx: Context) -> Response {
               |> wisp.json_response(201)
             }
             Error(_) -> {
-              helpers.user_already_exists_error()
+              errors.user_already_exists_error()
             }
           }
         }
         Error(_) -> {
-          helpers.invalid_user_uuid_error()
+          errors.invalid_user_uuid_error()
         }
       }
     }
