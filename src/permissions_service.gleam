@@ -1,11 +1,8 @@
 import app/router
-
-// import app/web.{type Collection}
 import app/web
 import gleam/erlang/os
 import gleam/erlang/process
 import gleam/io
-import gleam/list
 import gleam/result
 import mist
 import wisp
@@ -18,17 +15,21 @@ pub fn main() {
   let secret_key = load_application_secret()
   let db_user = load_mongodb_user()
   let db_password = load_mongodb_password()
-  let db_permissions_database = load_mongodb_database()
-  let db_host = load_mongodb_host()
+  let db_collection = load_mongodb_collection()
   let mongo_connection_string =
-    "mongodb://admin:password@mongodb:27017/permissions"
+    "mongodb://"
+    <> db_user
+    <> ":"
+    <> db_password
+    <> "@mongodb:27017/"
+    <> db_collection
+
   let context =
     web.Context(
       mongo_connection_string: mongo_connection_string,
       secret_key: secret_key,
     )
-  // The handle_request function is partially applied with the context to make
-  // the request handler function that only takes a request.
+
   let handler = router.handle_request(_, context)
 
   let assert Ok(_) =
@@ -55,13 +56,7 @@ fn load_mongodb_password() -> String {
   |> result.unwrap("MONGO_PASSWORD is not set.")
 }
 
-fn load_mongodb_database() -> String {
-  os.get_env("DB_DATABASE")
-  |> result.unwrap("MONGO_AUTH_DATABASE is not set.")
-}
-
-fn load_mongodb_host() -> String {
-  "postgres"
-  // os.get_env("DB_HOST")
-  // |> result.unwrap("DB_HOST is not set.")
+fn load_mongodb_collection() -> String {
+  os.get_env("DB_COLLECTION")
+  |> result.unwrap("permissions")
 }

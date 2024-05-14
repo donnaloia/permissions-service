@@ -1,4 +1,3 @@
-import mungo
 import wisp
 
 pub type Context {

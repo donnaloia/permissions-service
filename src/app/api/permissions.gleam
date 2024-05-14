@@ -1,5 +1,5 @@
 import app/web.{type Context}
-import bison/bson.{type Value}
+import bison/bson
 import bison/uuid
 import gleam/dict
 import gleam/dynamic.{
@@ -8,11 +8,9 @@ import gleam/dynamic.{
 import gleam/http.{Get, Patch, Post}
 import gleam/io
 import gleam/json
-import gleam/list
-import gleam/option.{type Option, None, Some}
-import gleam/result
+import gleam/option.{None, Some}
 import mungo
-import mungo/crud.{Sort, Upsert}
+import mungo/crud.{Upsert}
 import wisp.{type Request, type Response}
 
 // routing for creating a single users permissions
@@ -50,10 +48,9 @@ pub fn get_user_permission(req: Request, ctx: Context, id: String) -> Response {
       // io.debug(permissions) returns this:
       //Some(Document(dict.from_list([#("_id", Binary(Uuid(Uuid(<<85, 14, 132, 0, 226, 155, 65, 212, 167, 22, 68, 102, 85, 68, 0, 0>>)))), #("permissions", String("test perms"))])))
 
-      let permissions = case permissions {
+      case permissions {
         option.Some(bson.Document(value)) -> {
           let assert Ok(uuid) = dict.get(value, "_id")
-          io.debug(id)
           let uuid = case uuid {
             bson.Binary(bson.UUID(uuid)) -> uuid.to_string(uuid)
             _ -> ""
@@ -128,7 +125,7 @@ pub fn update_user_permission(
           ]
           let updated_permissions = dict.from_list(new_permissions)
 
-          let assert Ok(permissions) =
+          let assert Ok(_permissions) =
             client
             |> mungo.collection("permissions")
             |> mungo.update_one(
@@ -183,12 +180,7 @@ pub fn create_user_permission(req: Request, ctx: Context) -> Response {
         Ok(validated_uuid) -> {
           let assert Ok(client) = mungo.start(ctx.mongo_connection_string, 512)
 
-          let new_permissions = [
-            #("permissions", bson.String(user.permissions)),
-          ]
-          let updated_permissions = dict.from_list(new_permissions)
-
-          let assert Ok(permissions) =
+          let assert Ok(_permissions) =
             client
             |> mungo.collection("permissions")
             |> mungo.insert_one(
@@ -204,7 +196,7 @@ pub fn create_user_permission(req: Request, ctx: Context) -> Response {
             #("permissions", json.string(user.permissions)),
           ])
           |> json.to_string_builder()
-          |> wisp.json_response(200)
+          |> wisp.json_response(201)
         }
         Error(_) -> {
           json.object([#("error_message", json.string("invalid user_uuid."))])
