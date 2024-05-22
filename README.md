@@ -10,6 +10,7 @@ A modern standalone drop-in permissions microservice written in gleam.
 - flexible permissions structure gives clients flexibility/freedom to design their own permissions schema
 - designed to work flawlessly with my [Gleam Authentication Service](https://github.com/donnaloia/auth_server) in a distributed or integrated system
 - initial testing suggests performance improvements over comparable service written in Flask
+- built-in observability with Prometheus and Grafana (Can be disabled easily if desired)
 
 
 ## Tech Stack
@@ -18,13 +19,17 @@ A modern standalone drop-in permissions microservice written in gleam.
 
 **DB:** MongoDB
 
+**Cache:** Redis
+
 **Server:** Written in Gleam
+
+**Observability:** Prometheus, Grafana
 
 
 
 
 ## Run Locally
-docker-compose spins up a mongodb instance and the gleam permissions service for testing.
+docker-compose spins up a mongodb, redis, prometheus, and grafana instance as well as the actual gleam permissions service for testing.
 To deploy this project locally run:
 
 ```bash
@@ -81,8 +86,6 @@ To deploy this project locally run:
 
 ## Todo
 
-- refactor views (still learning Gleam)
-- api pagination
-- api docs server
-- add test coverage
+- add support for kubernetes
+- add more test coverage
 - CLI admin tool

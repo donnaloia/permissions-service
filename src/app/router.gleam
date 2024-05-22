@@ -1,5 +1,7 @@
 import app/api/permissions
-import app/web.{type Context}
+import app/prometheus
+import app/types.{type Context}
+import app/web
 import gleam/string_builder
 import wisp.{type Request, type Response}
 
@@ -7,7 +9,7 @@ import wisp.{type Request, type Response}
 /// 
 pub fn handle_request(req: Request, ctx: Context) -> Response {
   // Apply the middleware stack for this request/response.
-  use req <- web.middleware(req)
+  use req <- web.middleware(req, ctx)
 
   // Later we'll use templates, but for now a string will do.
   let body =
@@ -15,6 +17,7 @@ pub fn handle_request(req: Request, ctx: Context) -> Response {
 
   case wisp.path_segments(req) {
     ["dashboard"] -> wisp.html_response(body, 200)
+    ["metrics"] -> prometheus.get_prometheus_data_view(req, ctx)
     ["api", "permissions"] -> permissions.get_permissions_view(req, ctx)
     ["api", "permissions", uuid] ->
       permissions.get_permission_view(req, ctx, uuid)
