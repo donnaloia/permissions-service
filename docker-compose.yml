@@ -12,6 +12,8 @@ services:
       DB_PORT: 27017
       DB_USER: admin
       DB_PASSWORD: password
+      REDIS_HOST: redis
+      REDIS_PASSWORD: password
       SECRET_KEY: temp_secret
     volumes:
       - ./:/app
@@ -31,6 +33,7 @@ services:
       - mongodb:/data/db  # Persistant storage for Mongo data
       - ./mongo-init.js:/docker-entrypoint-initdb.d/mongo-init.js:ro # Sets up auth
 
+  # Web app for debugging mongodb
   mongo-express:
     image: mongo-express
     restart: always
@@ -41,6 +44,48 @@ services:
       ME_CONFIG_MONGODB_ADMINPASSWORD: password
       ME_CONFIG_MONGODB_URL: mongodb://admin:password@mongodb:27017/
       ME_CONFIG_BASICAUTH: false
+  
+  # Redis for caching request metadata (used for prometheus metrics)
+  redis:
+    image: redis:latest
+    restart: always
+    ports:
+      - "6379:6379"
+    environment:
+      REDIS_HOST: redis
+      REDIS_PASSWORD: password
+      REDIS_PORT: 6379
+      REDIS_DATABASES: 16
+    # volumes:
+    #   - ./redis/dаta:/root/redis
+    #   - ./redis/redis.conf:/usr/local/etc/redis/redis.conf
+
+  # Prometheus and Grafana for monitoring
+  prometheus:
+    image: prom/prometheus
+    container_name: prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+    ports:
+      - 9090:9090
+    restart: unless-stopped
+    volumes:
+      - ./prometheus:/etc/prometheus
+      - prom_data:/prometheus
+
+  grafana:
+    image: grafana/grafana
+    container_name: grafana
+    ports:
+      - 3000:3000
+    restart: unless-stopped
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=grafana
+    volumes:
+      - ./grafana:/etc/grafana/provisioning/datasources
+
+# External network for services to communicate
 networks:
   backend:
     external: true
@@ -48,3 +93,4 @@ networks:
 volumes:
   # Persistent storage volume for Mongo data
   mongodb:
+  prom_data:

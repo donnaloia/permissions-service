@@ -1,11 +1,10 @@
+import app/prometheus.{collect_metrics}
+import app/types.{type Context}
 import wisp
-
-pub type Context {
-  Context(mongo_connection_string: String, secret_key: String)
-}
 
 pub fn middleware(
   req: wisp.Request,
+  ctx: Context,
   handle_request: fn(wisp.Request) -> wisp.Response,
 ) -> wisp.Response {
   // Permit browsers to simulate methods other than GET and POST using the
@@ -14,6 +13,10 @@ pub fn middleware(
 
   // Log information about the request and response.
   use <- wisp.log_request(req)
+
+  // Collect http request metrics for Prometheus.
+  // Simply comment this out if you do not want to collect metrics.
+  use <- collect_metrics(req, ctx)
 
   // Return a default 500 response if the request handler crashes.
   use <- wisp.rescue_crashes

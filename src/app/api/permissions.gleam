@@ -1,5 +1,5 @@
 import app/errors
-import app/web.{type Context}
+import app/types.{type Context}
 import bison/bson
 import bison/uuid
 import gleam/dict
