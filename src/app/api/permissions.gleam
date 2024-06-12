@@ -105,7 +105,7 @@ pub fn update_user_permission(
           let assert Ok(client) = mungo.start(ctx.mongo_connection_string, 512)
 
           let new_permissions = [
-            #("permissions", bson.String(user.permissions)),
+            #("permissions", bson.Array([user.permissions])),
           ]
           let updated_permissions = dict.from_list(new_permissions)
 
@@ -158,7 +158,7 @@ pub fn create_user_permission(req: Request, ctx: Context) -> Response {
             |> mungo.insert_one(
               [
                 #("_id", bson.Binary(bson.UUID(validated_uuid))),
-                #("permissions", bson.Array([bson.String(user.permissions)])),
+                #("permissions", bson.Array([user.permissions])),
               ],
               128,
             )
@@ -192,7 +192,7 @@ fn decode_user_perms(json: Dynamic) -> Result(UserPermission, DecodeErrors) {
     dynamic.decode2(
       UserPermission,
       dynamic.field("user_uuid", dynamic.string),
-      dynamic.field("permissions", dynamic.dynamic),
+      dynamic.field("permissions", Ok),
     )
   decoder(json)
 }
