@@ -158,7 +158,7 @@ pub fn create_user_permission(req: Request, ctx: Context) -> Response {
             |> mungo.insert_one(
               [
                 #("_id", bson.Binary(bson.UUID(validated_uuid))),
-                #("permissions", bson.String(user.permissions)),
+                #("permissions", bson.Array([bson.String(user.permissions)])),
               ],
               128,
             )
@@ -166,7 +166,10 @@ pub fn create_user_permission(req: Request, ctx: Context) -> Response {
             Ok(_) -> {
               json.object([
                 #("id", json.string(user.user_uuid)),
-                #("permissions", json.string(user.permissions)),
+                #(
+                  "permissions",
+                  json.array([user.permissions], of: json.string),
+                ),
               ])
               |> json.to_string_builder()
               |> wisp.json_response(201)
@@ -189,11 +192,11 @@ fn decode_user_perms(json: Dynamic) -> Result(UserPermission, DecodeErrors) {
     dynamic.decode2(
       UserPermission,
       dynamic.field("user_uuid", dynamic.string),
-      dynamic.field("permissions", dynamic.string),
+      dynamic.field("permissions", dynamic.dynamic),
     )
   decoder(json)
 }
 
 pub type UserPermission {
-  UserPermission(user_uuid: String, permissions: String)
+  UserPermission(user_uuid: String, permissions: dynamic.Dynamic)
 }
