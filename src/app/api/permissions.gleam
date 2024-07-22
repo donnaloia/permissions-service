@@ -2,6 +2,7 @@ import app/errors
 import app/types.{type Context}
 import bison/bson
 import bison/uuid
+import decode
 import gleam/dict
 import gleam/dynamic.{
   type DecodeError, type DecodeErrors, type Dynamic, DecodeError,
@@ -89,7 +90,7 @@ pub fn update_user_permission(
   _id: String,
 ) -> Response {
   use json <- wisp.require_json(req)
-  case decode_user_perms(json) {
+  case run(json) {
     Error([DecodeError("field", "nothing", ["user_uuid"])]) -> {
       errors.user_uuid_missing_error()
     }
@@ -105,8 +106,9 @@ pub fn update_user_permission(
           let assert Ok(client) = mungo.start(ctx.mongo_connection_string, 512)
 
           let new_permissions = [
-            #("permissions", bson.String(user.permissions)),
+            #("permissions", bson.Array(user.organizations)),
           ]
+
           let updated_permissions = dict.from_list(new_permissions)
 
           let assert Ok(_permissions) =
@@ -137,7 +139,7 @@ pub fn update_user_permission(
 // creates a single users permissions
 pub fn create_user_permission(req: Request, ctx: Context) -> Response {
   use json <- wisp.require_json(req)
-  case decode_user_perms(json) {
+  case run(json) {
     Error([DecodeError("field", "nothing", ["user_uuid"])]) -> {
       errors.user_uuid_missing_error()
     }
@@ -158,7 +160,7 @@ pub fn create_user_permission(req: Request, ctx: Context) -> Response {
             |> mungo.insert_one(
               [
                 #("_id", bson.Binary(bson.UUID(validated_uuid))),
-                #("permissions", bson.String(user.permissions)),
+                #("permissions", bson.Array([user.organizations])),
               ],
               128,
             )
@@ -166,7 +168,10 @@ pub fn create_user_permission(req: Request, ctx: Context) -> Response {
             Ok(_) -> {
               json.object([
                 #("id", json.string(user.user_uuid)),
-                #("permissions", json.string(user.permissions)),
+                #(
+                  "permissions",
+                  json.array([user.permissions], of: json.string),
+                ),
               ])
               |> json.to_string_builder()
               |> wisp.json_response(201)
@@ -184,16 +189,104 @@ pub fn create_user_permission(req: Request, ctx: Context) -> Response {
   }
 }
 
-fn decode_user_perms(json: Dynamic) -> Result(UserPermission, DecodeErrors) {
-  let decoder =
-    dynamic.decode2(
-      UserPermission,
-      dynamic.field("user_uuid", dynamic.string),
-      dynamic.field("permissions", dynamic.string),
-    )
-  decoder(json)
+pub fn run(json: Dynamic) -> Result(UserPermission, DecodeErrors) {
+  let service_decoder =
+    decode.into({
+      use name <- decode.parameter
+      use roles <- decode.parameter
+      Service(name, roles)
+    })
+    |> decode.field("name", decode.string)
+    |> decode.field("roles", decode.list(decode.string))
+
+  let application_decoder =
+    decode.into({
+      use name <- decode.parameter
+      use services <- decode.parameter
+      Application(name, services)
+    })
+    |> decode.field("name", decode.string)
+    |> decode.field("services", decode.list(service_decoder))
+
+  let organization_decoder =
+    decode.into({
+      use organization_name <- decode.parameter
+      use applications <- decode.parameter
+      Organization(organization_name, applications)
+    })
+    |> decode.field("organization_name", decode.string)
+    |> decode.field("applications", decode.list(application_decoder))
+
+  let user_permission_decoder =
+    decode.into({
+      use user_uuid <- decode.parameter
+      use organizations <- decode.parameter
+      UserPermission(user_uuid, organizations)
+    })
+    |> decode.field("name", decode.string)
+    |> decode.field("organizations", decode.list(organization_decoder))
+
+  user_permission_decoder
+  |> decode.from(json)
 }
 
 pub type UserPermission {
-  UserPermission(user_uuid: String, permissions: String)
+  UserPermission(user_uuid: String, organizations: List(Organization))
 }
+
+pub type Organization {
+  Organization(organization_name: String, applications: List(Application))
+}
+
+pub type Application {
+  Application(name: String, services: List(Service))
+}
+
+pub type Service {
+  Service(name: String, roles: List(String))
+}
+// {
+//   "user_id": "1234",
+//   "permissions": [
+//     {
+//       "organization_name": "organization_A",
+//       "applications": [  // List of applications for organization_A
+//         {
+//           "name": "app_1",
+//           "services": [
+//             {
+//               "name": "service_1",
+//               "roles": ["admin"]
+//             },
+//             {
+//               "name": "service_2",
+//               "roles": ["developer"]
+//             }
+//           ]
+//         },
+//         {
+//           "name": "app_2",
+//           "services": [
+//             {
+//               "name": "service_3",
+//               "roles": ["read_only"]
+//             }
+//           ]
+//         }
+//       ],
+//       "services": {  // Optional: Top-level services for organization_A
+//         "service_4": {
+//           "roles": ["editor"]
+//         }
+//       }
+//     },
+//     {
+//       "organization_name": "organization_B",
+//       "services": {  // Organization_B might not have applications
+//         "service_5": {
+//           "roles": ["developer"]
+//         }
+//       }
+//     }
+//   ]
+// }
