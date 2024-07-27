@@ -1,15 +1,18 @@
 import app/errors
 import app/types.{type Context}
 import bison/bson
+import bison/ejson/decoder.{from_canonical as json_to_bson}
+import bison/ejson/encoder.{to_canonical as bson_to_json}
 import bison/uuid
 import decode
-import gleam/dict
+import gleam/dict.{type Dict}
 import gleam/dynamic.{
   type DecodeError, type DecodeErrors, type Dynamic, DecodeError,
 }
 import gleam/http.{Get, Patch, Post}
 import gleam/io
 import gleam/json
+import gleam/list
 import gleam/option.{None, Some}
 import mungo
 import mungo/crud.{Upsert}
@@ -57,14 +60,15 @@ pub fn get_user_permission(req: Request, ctx: Context, id: String) -> Response {
             _ -> ""
           }
 
-          let assert Ok(perms) = dict.get(value, "permissions")
-          let perms = case perms {
-            bson.String(value) -> value
+          let assert Ok(organizations) = dict.get(value, "organizations")
+          let organizations = case organizations {
+            bson.Array(val) -> bson_to_json(value)
             _ -> ""
           }
+
           json.object([
             #("id", json.string(uuid)),
-            #("permissions", json.string(perms)),
+            #("permissions", json.string(organizations)),
           ])
           |> json.to_string_builder()
           |> wisp.json_response(200)
@@ -105,11 +109,15 @@ pub fn update_user_permission(
         Ok(validated_uuid) -> {
           let assert Ok(client) = mungo.start(ctx.mongo_connection_string, 512)
 
-          let new_permissions = [
-            #("permissions", bson.Array(user.organizations)),
-          ]
+          // how to convert Organization type to bson or json
 
+          // let user = UserPermission(user.user_uuid, user.organizations)
+          // let user_bson = json_to_bson(json)
+          let new_permissions = [#("permissions", bson.String("ok"))]
           let updated_permissions = dict.from_list(new_permissions)
+
+          // need to pass the json as a string to json_to_bson
+          //let updated_permissions = json_to_bson(user_bson.organizations)
 
           let assert Ok(_permissions) =
             client
@@ -120,10 +128,9 @@ pub fn update_user_permission(
               [Upsert],
               128,
             )
-
           json.object([
             #("id", json.string(user.user_uuid)),
-            #("permissions", json.string(user.permissions)),
+            #("permissions", json.string("user.permissions")),
           ])
           |> json.to_string_builder()
           |> wisp.json_response(200)
@@ -153,6 +160,7 @@ pub fn create_user_permission(req: Request, ctx: Context) -> Response {
       case uuid.from_string(user.user_uuid) {
         Ok(validated_uuid) -> {
           let assert Ok(client) = mungo.start(ctx.mongo_connection_string, 512)
+          // how to convert user.organizations from List(Organization) to List(Value)
 
           let mongo_write =
             client
@@ -160,7 +168,7 @@ pub fn create_user_permission(req: Request, ctx: Context) -> Response {
             |> mungo.insert_one(
               [
                 #("_id", bson.Binary(bson.UUID(validated_uuid))),
-                #("permissions", bson.Array([user.organizations])),
+                #("permissions", bson.Array(user.organizations)),
               ],
               128,
             )
@@ -170,7 +178,7 @@ pub fn create_user_permission(req: Request, ctx: Context) -> Response {
                 #("id", json.string(user.user_uuid)),
                 #(
                   "permissions",
-                  json.array([user.permissions], of: json.string),
+                  json.array(user.organizations, of: json.object),
                 ),
               ])
               |> json.to_string_builder()
@@ -247,7 +255,7 @@ pub type Service {
 }
 // {
 //   "user_id": "1234",
-//   "permissions": [
+//   "organizations": [
 //     {
 //       "organization_name": "organization_A",
 //       "applications": [  // List of applications for organization_A
