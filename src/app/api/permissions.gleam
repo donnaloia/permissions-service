@@ -50,8 +50,6 @@ pub fn get_user_permission(req: Request, ctx: Context, id: String) -> Response {
           128,
         )
 
-      //Some(Document(dict.from_list([#("_id", Binary(Uuid(Uuid(<<85, 14, 132, 0, 226, 155, 65, 212, 167, 22, 68, 102, 85, 68, 0, 0>>)))), #("permissions", String("test perms"))])))
-
       case permissions {
         option.Some(bson.Document(value)) -> {
           let assert Ok(uuid) = dict.get(value, "_id")
@@ -108,11 +106,6 @@ pub fn update_user_permission(
       case uuid.from_string(user.user_uuid) {
         Ok(validated_uuid) -> {
           let assert Ok(client) = mungo.start(ctx.mongo_connection_string, 512)
-
-          // how to convert Organization type to bson or json
-
-          // let user = UserPermission(user.user_uuid, user.organizations)
-          // let user_bson = json_to_bson(json)
           let new_permissions = [#("permissions", bson.String("ok"))]
           let updated_permissions = dict.from_list(new_permissions)
 
@@ -143,6 +136,40 @@ pub fn update_user_permission(
   }
 }
 
+pub fn translate_to_bson(obj: PermissionsObject) -> bson.Value {
+  // recursive function to convert userpermission, organization, application, service to bson
+  case obj {
+    UserPermissionA(permission) -> {
+      let organizations = list.map(permission.organizations, translate_to_bson)
+      bson.Document([user_uuid, #("organizations", bson.Array(organizations))])
+    }
+    OrganizationA(organization) -> {
+      let organization_name = #(
+        "organization_name",
+        bson.String(organization.organization_name),
+      )
+      let applications = list.map(organization.applications, translate_to_bson)
+      bson.Document([
+        organization_name,
+        #("applications", bson.Array(applications)),
+      ])
+    }
+    ApplicationA(application) -> {
+      let name = #("name", bson.String(application.name))
+      let services = list.map(application.services, translate_to_bson)
+      bson.Document([name, #("services", bson.Array(services))])
+    }
+    Service(service) -> {
+      let name = #("name", bson.String(service.name))
+      let roles = #(
+        "roles",
+        bson.Array(list.map(service.roles, bson.String(service.roles))),
+      )
+      bson.Document([name, roles])
+    }
+  }
+}
+
 // creates a single users permissions
 pub fn create_user_permission(req: Request, ctx: Context) -> Response {
   use json <- wisp.require_json(req)
@@ -168,7 +195,13 @@ pub fn create_user_permission(req: Request, ctx: Context) -> Response {
             |> mungo.insert_one(
               [
                 #("_id", bson.Binary(bson.UUID(validated_uuid))),
-                #("permissions", bson.Array(user.organizations)),
+                #(
+                  "permissions",
+                  bson.Array(list.map(
+                    user.organizations,
+                    translate_to_bson(user.organizations),
+                  )),
+                ),
               ],
               128,
             )
@@ -197,7 +230,7 @@ pub fn create_user_permission(req: Request, ctx: Context) -> Response {
   }
 }
 
-pub fn run(json: Dynamic) -> Result(UserPermission, DecodeErrors) {
+pub fn run(json: Dynamic) -> Result(PermissionsObject, DecodeErrors) {
   let service_decoder =
     decode.into({
       use name <- decode.parameter
@@ -243,7 +276,7 @@ pub type UserPermission {
 }
 
 pub type Organization {
-  Organization(organization_name: String, applications: List(Application))
+  Organization(name: String, applications: List(Application))
 }
 
 pub type Application {
@@ -252,6 +285,13 @@ pub type Application {
 
 pub type Service {
   Service(name: String, roles: List(String))
+}
+
+pub type PermissionsObject {
+  UserPermissionA(UserPermission)
+  OrganizationA(Organization)
+  ApplicationA(Application)
+  ServiceA(Service)
 }
 // {
 //   "user_id": "1234",
