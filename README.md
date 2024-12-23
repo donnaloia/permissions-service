@@ -59,6 +59,7 @@ To deploy this project locally run:
 | :-------- | :------- | :-------------------------------- |
 | `uuid`    | `string` | **Required**. Uuid of user to fetch |
 
+
 #### Create User Permission
 
 ```http
