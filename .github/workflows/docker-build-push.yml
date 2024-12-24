@@ -6,7 +6,7 @@ on:
 
 env:
   REGISTRY: docker.io
-  IMAGE_NAME: authentication-service
+  IMAGE_NAME: permissions-service
   PLATFORMS: linux/amd64,linux/arm64
 
 jobs:
